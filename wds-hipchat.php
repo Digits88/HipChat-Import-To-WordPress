@@ -81,7 +81,7 @@ class _WDS_HipChat {
 		add_settings_field( 'hipchat_setting_terms', 'Import messages with these terms', array( $this, 'hipchat_setting_terms' ), $this->admin_slug, 'hipchat_setting_section' );
 		add_settings_field( 'hipchat_setting_name_block', 'Block Messages from Usernames', array( $this, 'hipchat_setting_name_block' ), $this->admin_slug, 'hipchat_setting_section' );
 		add_settings_field( 'hipchat_setting_room', 'Select Rooms To Include', array( $this, 'hipchat_setting_room' ), $this->admin_slug, 'hipchat_setting_section' );
-		add_settings_field( 'hipchat_setting_testing', 'HipChat Stuff', array( $this, 'hipchat_setting_testing' ), $this->admin_slug, 'hipchat_setting_section' );
+		// add_settings_field( 'hipchat_setting_testing', 'HipChat Stuff', array( $this, 'hipchat_setting_testing' ), $this->admin_slug, 'hipchat_setting_section' );
 	}
 
 	public function hipchat_setting_cron() {
