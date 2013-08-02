@@ -75,6 +75,7 @@ class _WDS_HipChat {
 		add_settings_section( 'hipchat_setting_section', '', '__return_null', $this->admin_slug );
 		add_settings_field( 'hipchat_setting_cron', 'Select Cron Schedule', array( $this, 'hipchat_setting_cron' ), $this->admin_slug, 'hipchat_setting_section' );
 		add_settings_field( 'hipchat_setting_terms', 'Import messages with these terms', array( $this, 'hipchat_setting_terms' ), $this->admin_slug, 'hipchat_setting_section' );
+		add_settings_field( 'hipchat_setting_name_block', 'Block Messages from Usernames', array( $this, 'hipchat_setting_name_block' ), $this->admin_slug, 'hipchat_setting_section' );
 		add_settings_field( 'hipchat_setting_room', 'Select Rooms To Include', array( $this, 'hipchat_setting_room' ), $this->admin_slug, 'hipchat_setting_section' );
 		// add_settings_field( 'hipchat_setting_testing', 'HipChat Stuff', array( $this, 'hipchat_setting_testing' ), $this->admin_slug, 'hipchat_setting_section' );
 	}
@@ -105,6 +106,13 @@ class _WDS_HipChat {
 		?>
 		<input type="text" placeholder="<?php _e( 'e.g. #wdschat, totwitter', 'wds' ); ?>" name="<?php echo $this->opt_name; ?>[terms]" value="<?php echo $this->opts( 'terms' ); ?>" />
 		<p class="description">Separate terms with commas.</p>
+		<?php
+	}
+
+	public function hipchat_setting_name_block() {
+		?>
+		<input type="text" placeholder="<?php _e( 'e.g. webdevstudios, YourMom', 'wds' ); ?>" name="<?php echo $this->opt_name; ?>[block]" value="<?php echo $this->opts( 'block' ); ?>" />
+		<p class="description">Separate usernames with commas.</p>
 		<?php
 	}
 
@@ -208,6 +216,11 @@ class _WDS_HipChat {
 		// split into array
 		$terms = ( false !== strpos( $terms, ',' ) ) ? explode( ',', $terms ) : array( $terms );
 
+
+		$blocked = $this->opts( 'blocked' );
+		// split into array
+		$blocked = ( false !== strpos( $blocked, ',' ) ) ? explode( ',', $blocked ) : array( $blocked );
+
 		foreach ( $room_ids as $room_id ) {
 			$hc = new HipChat\HipChat($this->token);
 			$this->room_history = $hc->get_rooms_history( $room_id );
@@ -217,9 +230,25 @@ class _WDS_HipChat {
 
 			// loop messages
 			foreach ( $this->room_history as $message ) {
+				$from_name = $message->from->name;
 				// skip messages posted by this site
-				if ( $message->from->name == $this->from() )
+				if ( $from_name == $this->from() || apply_filters( 'wds_hipchat_skip_message', false, $this->from(), $message ) )
 					continue;
+
+				$keep = true;
+				if ( !empty( $blocked ) ) {
+					foreach ( $blocked as $block ) {
+						// does author match a blocked name?
+						if ( strtolower( trim( $from_name ) ) == strtolower( trim( $block ) ) ) {
+							// if found, we don't keep this message
+							$keep = false;
+							break;
+						}
+					}
+					// so loop to the next message
+					if ( !$keep ) continue;
+				}
+
 				$keep = false;
 				foreach ( $terms as $term ) {
 					// search for our terms in the message
@@ -236,7 +265,7 @@ class _WDS_HipChat {
 				// parse a WP readable date from message date
 				$post_date = date( 'Y-m-d H:i:s', strtotime( $message->date ) );
 				// generate a post title from name & date
-				$post_title = sanitize_text_field( $message->from->name .' — '. $post_date );
+				$post_title = sanitize_text_field( $from_name .' — '. $post_date );
 				$content = wp_kses_post( $message->message );
 				// room name
 				$room_name = $this->rooms( $room_id );
@@ -254,17 +283,21 @@ class _WDS_HipChat {
 				  'post_title' => $post_title,
 				  'post_type' => $this->cpt->slug,
 				);
+				do_action( 'wds_hipchat_pre_save_post', $post, $message );
+
 				// and insert our post
 				$new_post_id = wp_insert_post( $post, true );
 				if ( is_wp_error( $new_post_id ) )
 					continue;
 				// if there were no errors, save our post-meta
-				update_post_meta( $new_post_id, 'wds-author', sanitize_text_field( isset( $message->from->name ) ? $message->from->name : 0 ) );
+				update_post_meta( $new_post_id, 'wds-author', sanitize_text_field( isset( $from_name ) ? $from_name : 0 ) );
 				update_post_meta( $new_post_id, 'wds-author-id', sanitize_text_field( isset( $message->from->user_id ) ? $message->from->user_id : 0 ) );
 				update_post_meta( $new_post_id, 'wds-hipchat-room', $room_name );
 
+				do_action( 'wds_hipchat_saved_post', $new_post_id, $message );
+
 				// send a message with permalink to hipchat
-				$message = 'New #wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote><br>'."\n".'<a href="'. get_edit_post_link( $new_post_id ) .'">Publish to Twitter?</a>';
+				$message = apply_filters( 'wds_hipchat_message', 'New wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote><br>'."\n".'<a href="'. get_edit_post_link( $new_post_id, false ) .'">Publish to Twitter?</a>', $new_post_id, $message );
 				$hc->message_room( $room_id, $this->from(), $message );
 			}
 		}
@@ -272,7 +305,8 @@ class _WDS_HipChat {
 	}
 
 	public function from() {
-		$this->from = $this->from ? $this->from : sanitize_html_class( substr( get_bloginfo( 'name' ), 0, 15 ), 'WebDevStudios' );
+		if ( !$this->from )
+			$this->from = sanitize_html_class( substr( apply_filters( 'wds_hipchat_from_name', get_bloginfo( 'name' ) ), 0, 15 ), 'WebDevStudios' );
 		return $this->from;
 	}
 
