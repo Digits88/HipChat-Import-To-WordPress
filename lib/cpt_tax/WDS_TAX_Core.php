@@ -62,6 +62,7 @@ class WDS_TAX_Core {
 				'new_item_name' => 'New '.$this->singular.' Name',
 			),
 			'show_ui' => true,
+			'show_admin_column' => true,
 			'query_var' => true,
 			'rewrite' => array( 'slug' => $this->registered ),
 		);

@@ -47,7 +47,7 @@ class WDS_Tweet_CPT_Reg extends WDS_CPT_Core {
 		$pos = array_search( 'date', array_keys( $columns ) );
 		$start = array_slice( $columns, 0, $pos );
 		$end = array_slice( $columns, $pos );
-		$new = array( 'content' => 'Message', 'room' => 'HipChat Room' );
+		$new = array( 'content' => 'Message' );
 
 		return array_merge( $start, $new, $end );
 	}
@@ -56,8 +56,6 @@ class WDS_Tweet_CPT_Reg extends WDS_CPT_Core {
 		global $post;
 		if ( $column == 'content' )
 			the_content();
-		if ( $column == 'room' )
-			echo get_post_meta( $post->ID, $this->prefix.'hipchat-room', 1 );
 	}
 
 	public function metaboxes( $meta_boxes ) {

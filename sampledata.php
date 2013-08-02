@@ -699,3 +699,12 @@ $rooms[21]->owner_user_id = 325862;
 $rooms[21]->is_archived = '';
 $rooms[21]->is_private = '1';
 $rooms[21]->xmpp_jid = '48447_ymca@conf.hipchat.com';
+
+
+$newrooms = array();
+
+foreach ( $this->rooms as $key => $room ) {
+    $newrooms[$room->room_id] = $room->name;
+}
+$this->rooms = $newrooms;
+

@@ -29,11 +29,7 @@ class _WDS_HipChat {
 		if ( ! class_exists( 'HipChat' ) )
 			require_once( _WDS_HipChat_PATH .'lib/hipchat/src/HipChat/HipChat.php' );
 
-		// Custom CPT Setup
-		require_once( _WDS_HipChat_PATH .'lib/WDS_Tweet_CPT_Reg.php' );
-		$this->cpt = new WDS_Tweet_CPT_Reg();
-
-		add_action( 'init', array( $this, 'hooks' ) );
+		add_action( 'init', array( $this, 'hooks' ), 0 );
 		add_action( 'admin_init', array( $this, 'admin_hooks' ) );
 		add_action( 'admin_menu', array( $this, 'settings' ) );
 		// filter cmb url path
@@ -68,6 +64,14 @@ class _WDS_HipChat {
 	}
 
 	public function hooks() {
+		// Custom CPT Setup
+		require_once( _WDS_HipChat_PATH .'lib/WDS_Tweet_CPT_Reg.php' );
+		$this->cpt = new WDS_Tweet_CPT_Reg();
+		// Custom Taxonomies
+		if ( !class_exists( 'WDS_TAX_Core' ) )
+			require_once( _WDS_HipChat_PATH .'lib/cpt_tax/WDS_TAX_Core.php' );
+		$this->account_tax = new WDS_TAX_Core( array( 'Account', 'Accounts', 'wds-hipchat-account' ), $this->cpt->slug );
+		$this->room_tax = new WDS_TAX_Core( array( 'Room', 'Rooms', 'wds-hipchat-room' ), $this->cpt->slug );
 	}
 
 	public function admin_hooks() {
@@ -77,7 +81,7 @@ class _WDS_HipChat {
 		add_settings_field( 'hipchat_setting_terms', 'Import messages with these terms', array( $this, 'hipchat_setting_terms' ), $this->admin_slug, 'hipchat_setting_section' );
 		add_settings_field( 'hipchat_setting_name_block', 'Block Messages from Usernames', array( $this, 'hipchat_setting_name_block' ), $this->admin_slug, 'hipchat_setting_section' );
 		add_settings_field( 'hipchat_setting_room', 'Select Rooms To Include', array( $this, 'hipchat_setting_room' ), $this->admin_slug, 'hipchat_setting_section' );
-		// add_settings_field( 'hipchat_setting_testing', 'HipChat Stuff', array( $this, 'hipchat_setting_testing' ), $this->admin_slug, 'hipchat_setting_section' );
+		add_settings_field( 'hipchat_setting_testing', 'HipChat Stuff', array( $this, 'hipchat_setting_testing' ), $this->admin_slug, 'hipchat_setting_section' );
 	}
 
 	public function hipchat_setting_cron() {
@@ -117,16 +121,18 @@ class _WDS_HipChat {
 	}
 
 	public function hipchat_setting_testing() {
-		echo '<pre>'. htmlentities( print_r( $this->rooms(), true ) ) .'</pre>';
+		// echo '<pre>'. htmlentities( print_r( $this->rooms(), true ) ) .'</pre>';
 
-		// get rooms to check for terms
-		$room_ids = $this->opts( 'room_ids' );
-		if ( empty( $room_ids ) )
-			return;
+		// // get rooms to check for terms
+		// $room_ids = $this->opts( 'room_ids' );
+		// if ( empty( $room_ids ) )
+		// 	return;
 
-		foreach ( $room_ids as $room_id ) {
-			echo '<pre>$room_id: '. htmlentities( print_r( $room_id, true ) ) .'</pre>';
-		}
+		// foreach ( $room_ids as $room_id ) {
+		// 	echo '<pre>$room_id: '. htmlentities( print_r( $room_id, true ) ) .'</pre>';
+		// }
+
+		$this->cron_callback();
 
 	}
 
@@ -224,6 +230,7 @@ class _WDS_HipChat {
 		foreach ( $room_ids as $room_id ) {
 			$hc = new HipChat\HipChat($this->token);
 			$this->room_history = $hc->get_rooms_history( $room_id );
+			// require_once( 'sampledata.php' );
 
 			if ( !$this->room_history )
 				return;
@@ -231,6 +238,7 @@ class _WDS_HipChat {
 			// loop messages
 			foreach ( $this->room_history as $message ) {
 				$from_name = $message->from->name;
+				$from_name = sanitize_text_field( isset( $from_name ) ? $from_name : 'no-name' );
 				// skip messages posted by this site
 				if ( $from_name == $this->from() || apply_filters( 'wds_hipchat_skip_message', false, $this->from(), $message ) )
 					continue;
@@ -269,7 +277,7 @@ class _WDS_HipChat {
 				$content = wp_kses_post( $message->message );
 				// room name
 				$room_name = $this->rooms( $room_id );
-				$room_name = sanitize_text_field( isset( $room_name ) ? $room_name : 0 );
+				$room_name = sanitize_text_field( isset( $room_name ) ? $room_name : 'No Room' );
 				// If this name is the same as an existing post, bail here
 				if ( get_page_by_title( $post_title, OBJECT, $this->cpt->slug ) )
 					continue;
@@ -290,14 +298,13 @@ class _WDS_HipChat {
 				if ( is_wp_error( $new_post_id ) )
 					continue;
 				// if there were no errors, save our post-meta
-				update_post_meta( $new_post_id, 'wds-author', sanitize_text_field( isset( $from_name ) ? $from_name : 0 ) );
+				wp_set_object_terms( $new_post_id, array( $from_name ), $this->account_tax->slug );
+				wp_set_object_terms( $new_post_id, array( $room_name ), $this->room_tax->slug );
 				update_post_meta( $new_post_id, 'wds-author-id', sanitize_text_field( isset( $message->from->user_id ) ? $message->from->user_id : 0 ) );
-				update_post_meta( $new_post_id, 'wds-hipchat-room', $room_name );
 
 				do_action( 'wds_hipchat_saved_post', $new_post_id, $message );
-
 				// send a message with permalink to hipchat
-				$message = apply_filters( 'wds_hipchat_message', 'New wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote><br>'."\n".'<a href="'. get_edit_post_link( $new_post_id, false ) .'">Publish to Twitter?</a>', $new_post_id, $message );
+				$message = apply_filters( 'wds_hipchat_message', 'New wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote><br>'."\n".'<a href="'. urlencode(get_edit_post_link( $new_post_id, false ) ) .'">Publish to Twitter?</a>', $new_post_id, $message );
 				$hc->message_room( $room_id, $this->from(), $message );
 			}
 		}
