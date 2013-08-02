@@ -264,7 +264,7 @@ class _WDS_HipChat {
 				update_post_meta( $new_post_id, 'wds-hipchat-room', $room_name );
 
 				// send a message with permalink to hipchat
-				$message = 'New #wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote>';
+				$message = 'New #wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote><br>'."\n".'<a href="'. get_edit_post_link( $new_post_id ) .'">Publish to Twitter?</a>';
 				$hc->message_room( $room_id, $this->from(), $message );
 			}
 		}
