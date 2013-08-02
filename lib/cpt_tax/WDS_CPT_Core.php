@@ -21,6 +21,7 @@ class WDS_CPT_Core {
 	private $registered;
 	public $slug;
 	private $args;
+	public $img = null;
 
 	/**
 	 * Holds copy of instance, so other plugins can remove our hooks.
@@ -67,10 +68,6 @@ class WDS_CPT_Core {
 
 	public function cpt_loop() {
 
-		$file = _WDS_CRM_PATH .'lib/css/'. $this->registered .'.png';
-		$path = WDS_CPT_TAX_URL .'css/'. $this->registered .'.png';
-		$img = file_exists( $file ) ? $path : null;
-
 		//set default custom post type options
 		$defaults = array(
 			'labels' => array(
@@ -93,7 +90,7 @@ class WDS_CPT_Core {
 			'show_ui' => true,
 			'show_in_menu' => true,
 			'query_var' => true,
-			'menu_icon' => $img,
+			'menu_icon' => $this->img,
 			'rewrite' => true,
 			'capability_type' => 'post',
 			'has_archive' => true,
@@ -107,7 +104,7 @@ class WDS_CPT_Core {
 
 		// Make sure we have our metabox class
 		if ( ! class_exists( 'cmb_Meta_Box' ) )
-			require_once( _WDS_CRM_PATH .'lib/cmb/init.php' );
+			require_once( _WDS_HipChat_PATH .'lib/cmb/init.php' );
 	}
 
 	public function messages( $messages ) {
@@ -161,12 +158,10 @@ class WDS_CPT_Core {
 	<?php
 
 	if ( $screen == 'edit-'. $this->registered || $screen == $this->registered ) {
-		$file = _WDS_CRM_PATH .'lib/css/'. $this->registered .'32.png';
-		$path = WDS_CPT_TAX_URL .'css/'. $this->registered .'32.png';
-		if ( file_exists( $file ) ) {
+		if ( $this->img ) {
 	?>#icon-edit.icon32.icon32-posts-<?php echo $this->registered; ?> {
 		background-position: 0 0;
-		background-image: url('<?php echo $path; ?>');
+		background-image: url('<?php echo $this->img; ?>');
 	}
 	<?php
 

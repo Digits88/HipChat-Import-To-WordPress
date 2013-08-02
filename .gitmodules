@@ -1,0 +1,6 @@
+[submodule "lib/hipchat"]
+	path = lib/hipchat
+	url = https://github.com/hipchat/hipchat-php.git
+[submodule "lib/cmb"]
+	path = lib/cmb
+	url = git@github.com:jaredatch/Custom-Metaboxes-and-Fields-for-WordPress.git
