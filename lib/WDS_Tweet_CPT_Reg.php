@@ -24,7 +24,7 @@ class WDS_Tweet_CPT_Reg extends WDS_CPT_Core {
 
 		self::$instance = $this;
 
-		parent::__construct( array( 'Tweet', 'Tweets', 'wds-tweets' ), array( 'supports' => array( 'title', 'editor' ) ) );
+		parent::__construct( array( 'Tweet', 'Tweets', 'wds-tweets' ), array( 'supports' => array( 'title', 'editor' ), 'rewrite' => array( 'slug' => 'wdschat' ) ) );
 
 		add_filter( 'cmb_meta_boxes', array( $this, 'metaboxes' ) );
 		add_action( 'admin_head', array( $this, 'tweetcss' ) );
