@@ -273,7 +273,7 @@ class _WDS_HipChat {
 				// parse a WP readable date from message date
 				$post_date = date( 'Y-m-d H:i:s', strtotime( $message->date ) );
 				// generate a post title from name & date
-				$post_title = sanitize_text_field( $from_name .' — '. $post_date );
+				$post_title = sanitize_text_field( 'OH:'. strtotime( $message->date ) );
 				$content = wp_kses_post( $message->message );
 				// room name
 				$room_name = $this->rooms( $room_id );
@@ -304,7 +304,7 @@ class _WDS_HipChat {
 
 				do_action( 'wds_hipchat_saved_post', $new_post_id, $message );
 				// send a message with permalink to hipchat
-				$message = apply_filters( 'wds_hipchat_message', 'New wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote><br>'."\n", $new_post_id, $message );
+				$message = apply_filters( 'wds_hipchat_message', 'New #wdschat! - <a href="'. get_permalink( $new_post_id ) .'">'. $post_title .'</a><br>'."\n".'<blockquote>'. substr( $content, 0, 120 ) .'</blockquote><br>'."\n", $new_post_id, $message );
 				$hc->message_room( $room_id, $this->from(), $message );
 			}
 		}
