@@ -284,7 +284,7 @@ class _WDS_HipChat {
 
 				// create our post data
 				$post = array(
-				  'post_content' => $content,
+				  'post_content' => str_replace( '#wdschat ', '<a href="http://twitter.com/search?q=%#wdschat">#wdschat</a> ', $content ),
 				  'post_date' => $post_date,
 				  'post_date_gmt' => $post_date,
 				  'post_status' => 'publish',
