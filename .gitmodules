@@ -4,3 +4,6 @@
 [submodule "lib/cmb"]
 	path = lib/cmb
 	url = git@github.com:jaredatch/Custom-Metaboxes-and-Fields-for-WordPress.git
+[submodule "lib/twitter-text-php"]
+	path = lib/twitter-text-php
+	url = https://github.com/mzsanford/twitter-text-php.git
