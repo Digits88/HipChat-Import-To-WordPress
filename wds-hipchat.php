@@ -29,6 +29,10 @@ class _WDS_HipChat {
 		if ( ! class_exists( 'HipChat' ) )
 			require_once( _WDS_HipChat_PATH .'lib/hipchat/src/HipChat/HipChat.php' );
 
+		// Include the Twitter-Text-PHP library
+		if ( ! class_exists( 'Twitter_Regex' ) )
+			require_once( _WDS_HipChat_PATH .'lib/twitter-text-php/lib/Twitter/Autolink.php' );
+
 		add_action( 'init', array( $this, 'hooks' ), 0 );
 		add_action( 'admin_init', array( $this, 'admin_hooks' ) );
 		add_action( 'admin_menu', array( $this, 'settings' ) );
@@ -39,7 +43,6 @@ class _WDS_HipChat {
 		add_action( 'wds_hipchat_cron', array( $this, 'cron_callback' ) );
 		// @DEV adds a minutely schedule for testing cron
 		add_filter( 'cron_schedules', array( $this, 'minutely' ) );
-
 		if ( !$this->opts('frequency') || $this->opts( 'frequency' ) == 'never' )
 			return;
 
@@ -72,6 +75,9 @@ class _WDS_HipChat {
 			require_once( _WDS_HipChat_PATH .'lib/cpt_tax/WDS_TAX_Core.php' );
 		$this->account_tax = new WDS_TAX_Core( array( 'Account', 'Accounts', 'wds-hipchat-account' ), $this->cpt->slug );
 		$this->room_tax = new WDS_TAX_Core( array( 'Room', 'Rooms', 'wds-hipchat-room' ), $this->cpt->slug );
+
+		// filter the front-end display of these 'tweets'
+		add_filter( 'the_content', array( $this, 'twitter_linkify' )  );
 	}
 
 	public function admin_hooks() {
@@ -274,7 +280,8 @@ class _WDS_HipChat {
 				$post_date = date( 'Y-m-d H:i:s', strtotime( $message->date ) );
 				// generate a post title from name & date
 				$post_title = sanitize_text_field( 'OH:'. strtotime( $message->date ) );
-				$content = wp_kses_post( $message->message );
+				// no filter because it doesn't handle line-breaks well. :(
+				$content = $message->message;
 				// room name
 				$room_name = $this->rooms( $room_id );
 				$room_name = sanitize_text_field( isset( $room_name ) ? $room_name : 'No Room' );
@@ -284,7 +291,8 @@ class _WDS_HipChat {
 
 				// create our post data
 				$post = array(
-				  'post_content' => str_replace( '#wdschat ', '<a href="http://twitter.com/search?q=%#wdschat">#wdschat</a> ', $content ),
+					// linkify the hashtags
+				  'post_content' => str_replace( '#wdschat', '<a href="http://twitter.com/search?q=%#wdschat">#wdschat</a>', $content ),
 				  'post_date' => $post_date,
 				  'post_date_gmt' => $post_date,
 				  'post_status' => 'publish',
@@ -321,12 +329,29 @@ class _WDS_HipChat {
 	 * @DEV Adds once minutely to the existing schedules for easier cron testing.
 	 * @since  1.2.0
 	 */
-	function minutely( $schedules ) {
+	public function minutely( $schedules ) {
 		$schedules['minutely'] = array(
 			'interval' => 60,
 			'display'  => 'Once Every Minute'
 		);
 		return $schedules;
+	}
+
+	/**
+	 * Parses tweets and generates HTML anchor tags around URLs, usernames,
+	 * username/list pairs and hashtags.
+	 *
+	 * @link https://github.com/mzsanford/twitter-text-php
+	 *
+	 * @param  string $content Post content
+	 * @return string          Modified post content
+	 */
+	public function twitter_linkify( $content ) {
+
+		if ( get_post_type() == $this->cpt->slug )
+			return Twitter_Autolink::create( $content )->setNoFollow( false )->addLinks();
+
+		return $content;
 	}
 
 }
